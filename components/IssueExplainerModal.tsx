@@ -24,6 +24,9 @@ interface IssueExplainerModalProps {
   isOpen: boolean;
   onClose: () => void;
   customApiKey?: string;
+  aiProvider?: 'auto' | 'gemini' | 'ollama';
+  ollamaModel?: string;
+  ollamaEndpoint?: string;
 }
 
 export function IssueExplainerModal({
@@ -31,6 +34,9 @@ export function IssueExplainerModal({
   isOpen,
   onClose,
   customApiKey,
+  aiProvider = 'auto',
+  ollamaModel,
+  ollamaEndpoint,
 }: IssueExplainerModalProps) {
   const [activeSubTab, setActiveSubTab] = useState<'summary' | 'files' | 'steps' | 'code' | 'gotchas'>('summary');
   const [explanation, setExplanation] = useState<IssueExplanation | null>(null);
@@ -52,7 +58,13 @@ export function IssueExplainerModal({
       const res = await fetch('/api/explain-issue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ issue: targetIssue, customApiKey }),
+        body: JSON.stringify({
+          issue: targetIssue,
+          customApiKey,
+          provider: aiProvider,
+          ollamaModel,
+          ollamaEndpoint,
+        }),
       });
 
       if (!res.ok) {

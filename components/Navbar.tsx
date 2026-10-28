@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, GitPullRequest, Search, Compass, BookOpen, Puzzle, Settings } from 'lucide-react';
+import { Sparkles, GitPullRequest, Search, Compass, BookOpen, Puzzle, Settings, Download } from 'lucide-react';
 import { GithubIcon } from '@/components/Icons';
 
 interface NavbarProps {
@@ -9,9 +9,10 @@ interface NavbarProps {
   setActiveTab: (tab: 'issues' | 'explainer' | 'pr-doctor' | 'hacktoberfest' | 'extension') => void;
   onOpenSettings: () => void;
   hasCustomKey: boolean;
+  activeAiLabel?: string;
 }
 
-export function Navbar({ activeTab, setActiveTab, onOpenSettings, hasCustomKey }: NavbarProps) {
+export function Navbar({ activeTab, setActiveTab, onOpenSettings, hasCustomKey, activeAiLabel }: NavbarProps) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -98,13 +99,28 @@ export function Navbar({ activeTab, setActiveTab, onOpenSettings, hasCustomKey }
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
+          <a
+            href="/api/download"
+            download="gitstart-ai.zip"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-all shadow-sm"
+            title="Download complete project code as ZIP"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Download ZIP</span>
+          </a>
+
           <button
             onClick={onOpenSettings}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-            title="Configure Gemini & GitHub API credentials"
+            title="Configure AI Engine (Gemini / Ollama) & GitHub API credentials"
           >
             <Settings className="w-3.5 h-3.5 text-slate-400" />
             <span className="hidden sm:inline">Settings</span>
+            {activeAiLabel && (
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold hidden md:inline">
+                {activeAiLabel}
+              </span>
+            )}
             {hasCustomKey && (
               <span className="w-2 h-2 rounded-full bg-emerald-400" title="Custom Gemini API Key Active" />
             )}

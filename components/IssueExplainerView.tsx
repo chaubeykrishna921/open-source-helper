@@ -22,10 +22,18 @@ import {
 
 interface IssueExplainerViewProps {
   customApiKey?: string;
+  aiProvider?: 'auto' | 'gemini' | 'ollama';
+  ollamaModel?: string;
+  ollamaEndpoint?: string;
   onOpenIssueModal?: (issue: Issue) => void;
 }
 
-export function IssueExplainerView({ customApiKey }: IssueExplainerViewProps) {
+export function IssueExplainerView({
+  customApiKey,
+  aiProvider = 'auto',
+  ollamaModel,
+  ollamaEndpoint,
+}: IssueExplainerViewProps) {
   const [selectedIssue, setSelectedIssue] = useState<Issue>(SAMPLE_ISSUES[0]);
   const [customTitle, setCustomTitle] = useState('');
   const [customBody, setCustomBody] = useState('');
@@ -42,7 +50,13 @@ export function IssueExplainerView({ customApiKey }: IssueExplainerViewProps) {
       const res = await fetch('/api/explain-issue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ issue: issueToExplain, customApiKey }),
+        body: JSON.stringify({
+          issue: issueToExplain,
+          customApiKey,
+          provider: aiProvider,
+          ollamaModel,
+          ollamaEndpoint,
+        }),
       });
       const data = await res.json();
       setExplanation(data);

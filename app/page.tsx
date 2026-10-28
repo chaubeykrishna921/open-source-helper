@@ -30,24 +30,54 @@ export default function Home() {
   const [isExplainerOpen, setIsExplainerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // API Credentials stored in state / localStorage
+  // API & AI Configuration stored in state / localStorage
   const [geminiKey, setGeminiKey] = useState<string>('');
   const [githubToken, setGithubToken] = useState<string>('');
+  const [aiProvider, setAiProvider] = useState<'auto' | 'gemini' | 'ollama'>('auto');
+  const [ollamaModel, setOllamaModel] = useState<string>('qwen3.5:4b');
+  const [ollamaEndpoint, setOllamaEndpoint] = useState<string>('http://localhost:11434');
 
   useEffect(() => {
-    // Load stored keys if any
+    // Load stored keys and AI provider if any
     const storedGemini = localStorage.getItem('gitstart_gemini_key') || '';
     const storedGithub = localStorage.getItem('gitstart_github_token') || '';
+    const storedProvider = (localStorage.getItem('gitstart_ai_provider') as 'auto' | 'gemini' | 'ollama') || 'auto';
+    const storedOllamaModel = localStorage.getItem('gitstart_ollama_model') || 'qwen3.5:4b';
+    const storedOllamaEndpoint = localStorage.getItem('gitstart_ollama_endpoint') || 'http://localhost:11434';
+
     setGeminiKey(storedGemini);
     setGithubToken(storedGithub);
+    setAiProvider(storedProvider);
+    setOllamaModel(storedOllamaModel);
+    setOllamaEndpoint(storedOllamaEndpoint);
   }, []);
 
-  const handleSaveSettings = (newGeminiKey: string, newGithubToken: string) => {
+  const handleSaveSettings = (
+    newGeminiKey: string,
+    newGithubToken: string,
+    newProvider: 'auto' | 'gemini' | 'ollama',
+    newOllamaModel: string,
+    newOllamaEndpoint: string
+  ) => {
     setGeminiKey(newGeminiKey);
     setGithubToken(newGithubToken);
+    setAiProvider(newProvider);
+    setOllamaModel(newOllamaModel);
+    setOllamaEndpoint(newOllamaEndpoint);
+
     localStorage.setItem('gitstart_gemini_key', newGeminiKey);
     localStorage.setItem('gitstart_github_token', newGithubToken);
+    localStorage.setItem('gitstart_ai_provider', newProvider);
+    localStorage.setItem('gitstart_ollama_model', newOllamaModel);
+    localStorage.setItem('gitstart_ollama_endpoint', newOllamaEndpoint);
   };
+
+  const activeAiLabel =
+    aiProvider === 'ollama'
+      ? `🦙 ${ollamaModel}`
+      : aiProvider === 'gemini'
+      ? '🌟 Gemini'
+      : `⚡ Auto (${ollamaModel})`;
 
   // Fetch / filter issues whenever controls change
   useEffect(() => {
@@ -113,6 +143,7 @@ export default function Home() {
         setActiveTab={setActiveTab}
         onOpenSettings={() => setIsSettingsOpen(true)}
         hasCustomKey={Boolean(geminiKey)}
+        activeAiLabel={activeAiLabel}
       />
 
       {/* Main Content Area */}
@@ -181,14 +212,24 @@ export default function Home() {
         {/* TAB 2: ELI5 CODEBASE EXPLAINER */}
         {activeTab === 'explainer' && (
           <div className="animate-in fade-in duration-150">
-            <IssueExplainerView customApiKey={geminiKey} />
+            <IssueExplainerView
+              customApiKey={geminiKey}
+              aiProvider={aiProvider}
+              ollamaModel={ollamaModel}
+              ollamaEndpoint={ollamaEndpoint}
+            />
           </div>
         )}
 
         {/* TAB 3: PRE-FLIGHT PR DOCTOR */}
         {activeTab === 'pr-doctor' && (
           <div className="animate-in fade-in duration-150">
-            <PRDoctor customApiKey={geminiKey} />
+            <PRDoctor
+              customApiKey={geminiKey}
+              aiProvider={aiProvider}
+              ollamaModel={ollamaModel}
+              ollamaEndpoint={ollamaEndpoint}
+            />
           </div>
         )}
 
@@ -213,6 +254,9 @@ export default function Home() {
         isOpen={isExplainerOpen}
         onClose={() => setIsExplainerOpen(false)}
         customApiKey={geminiKey}
+        aiProvider={aiProvider}
+        ollamaModel={ollamaModel}
+        ollamaEndpoint={ollamaEndpoint}
       />
 
       {/* Settings Modal */}
@@ -221,6 +265,9 @@ export default function Home() {
         onClose={() => setIsSettingsOpen(false)}
         geminiKey={geminiKey}
         githubToken={githubToken}
+        aiProvider={aiProvider}
+        ollamaModel={ollamaModel}
+        ollamaEndpoint={ollamaEndpoint}
         onSave={handleSaveSettings}
       />
 

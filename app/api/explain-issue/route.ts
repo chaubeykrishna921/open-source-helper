@@ -4,13 +4,18 @@ import { explainIssueWithGemini } from '@/lib/gemini';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { issue, customApiKey } = body;
+    const { issue, customApiKey, provider, ollamaModel, ollamaEndpoint } = body;
 
     if (!issue) {
       return NextResponse.json({ error: 'Issue payload is required' }, { status: 400 });
     }
 
-    const explanation = await explainIssueWithGemini(issue, customApiKey);
+    const explanation = await explainIssueWithGemini(issue, {
+      customApiKey,
+      provider,
+      ollamaModel,
+      ollamaEndpoint,
+    });
     return NextResponse.json(explanation);
   } catch (err: any) {
     return NextResponse.json(

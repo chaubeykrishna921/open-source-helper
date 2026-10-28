@@ -22,9 +22,17 @@ import {
 
 interface PRDoctorProps {
   customApiKey?: string;
+  aiProvider?: 'auto' | 'gemini' | 'ollama';
+  ollamaModel?: string;
+  ollamaEndpoint?: string;
 }
 
-export function PRDoctor({ customApiKey }: PRDoctorProps) {
+export function PRDoctor({
+  customApiKey,
+  aiProvider = 'auto',
+  ollamaModel,
+  ollamaEndpoint,
+}: PRDoctorProps) {
   const [prDraft, setPrDraft] = useState<PRReviewRequest>(SAMPLE_PRS.messyBeginner);
   const [reviewResult, setReviewResult] = useState<PRReviewResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,7 +52,13 @@ export function PRDoctor({ customApiKey }: PRDoctorProps) {
       const res = await fetch('/api/review-pr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...requestData, customApiKey }),
+        body: JSON.stringify({
+          ...requestData,
+          customApiKey,
+          provider: aiProvider,
+          ollamaModel,
+          ollamaEndpoint,
+        }),
       });
       const data: PRReviewResult = await res.json();
       setReviewResult(data);

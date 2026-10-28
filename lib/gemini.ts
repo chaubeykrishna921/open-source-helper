@@ -1,6 +1,14 @@
 import { GoogleGenAI } from '@google/genai';
 import { Issue, IssueExplanation, PRReviewRequest, PRReviewResult } from './types';
 import { SAMPLE_EXPLANATION } from './mock-data';
+import { checkOllamaStatus, explainIssueWithOllama, reviewPRWithOllama } from './ollama';
+
+export interface AIOptions {
+  provider?: 'auto' | 'gemini' | 'ollama' | 'offline';
+  customApiKey?: string;
+  ollamaModel?: string;
+  ollamaEndpoint?: string;
+}
 
 function getGeminiClient(customApiKey?: string): GoogleGenAI | null {
   const apiKey = customApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -15,11 +23,31 @@ function getGeminiClient(customApiKey?: string): GoogleGenAI | null {
 
 export async function explainIssueWithGemini(
   issue: Partial<Issue>,
-  customApiKey?: string
+  optionsOrKey?: AIOptions | string
 ): Promise<IssueExplanation> {
-  const client = getGeminiClient(customApiKey);
+  const options: AIOptions =
+    typeof optionsOrKey === 'string'
+      ? { customApiKey: optionsOrKey }
+      : optionsOrKey || {};
 
-  if (client) {
+  const provider = options.provider || 'auto';
+
+  // 1. Direct Ollama choice
+  if (provider === 'ollama') {
+    try {
+      return await explainIssueWithOllama(issue, {
+        model: options.ollamaModel,
+        endpoint: options.ollamaEndpoint,
+      });
+    } catch (ollamaErr) {
+      console.warn('Ollama execution failed, falling back to heuristic:', ollamaErr);
+      return generateHeuristicExplanation(issue);
+    }
+  }
+
+  // 2. Direct Gemini or Auto (check Gemini key first)
+  const client = getGeminiClient(options.customApiKey);
+  if (client && (provider === 'gemini' || provider === 'auto')) {
     try {
       const prompt = `You are GitStart AI, an expert, encouraging mentor for open source beginners contributing during Hacktoberfest.
 Analyze this GitHub issue and explain it so a beginner can understand and solve it without getting overwhelmed.
@@ -66,7 +94,6 @@ Respond with ONLY valid JSON with this exact schema:
   "gitCommandsToStart": ["git checkout -b fix/issue-name", "npm install"]
 }`;
 
-      // Call Gemini 3.8 Flash
       let rawText = '';
       try {
         const response = await client.models.generateContent({
@@ -75,7 +102,6 @@ Respond with ONLY valid JSON with this exact schema:
         });
         rawText = response.text || '';
       } catch (err2) {
-        // Fallback to interaction API if supported
         const interaction = await client.interactions.create({
           model: 'gemini-3.8-flash',
           input: prompt,
@@ -83,7 +109,6 @@ Respond with ONLY valid JSON with this exact schema:
         rawText = interaction.output_text || '';
       }
 
-      // Clean markdown fences if any
       const cleaned = rawText
         .replace(/```json\n?/g, '')
         .replace(/```\n?/g, '')
@@ -92,21 +117,61 @@ Respond with ONLY valid JSON with this exact schema:
       const parsed: IssueExplanation = JSON.parse(cleaned);
       return parsed;
     } catch (apiErr) {
-      console.warn('Gemini API call failed or returned unparseable text, using intelligent heuristic fallback:', apiErr);
+      console.warn('Gemini API call failed, will try Ollama or fallback:', apiErr);
     }
   }
 
-  // Intelligent Heuristic Fallback
+  // 3. Auto fallback to local Ollama if running
+  if (provider === 'auto') {
+    try {
+      const ollamaStatus = await checkOllamaStatus(options.ollamaEndpoint);
+      if (ollamaStatus.running && ollamaStatus.models.length > 0) {
+        const modelToUse =
+          options.ollamaModel ||
+          ollamaStatus.models.find((m) => m.includes('qwen') || m.includes('gemma') || m.includes('llama')) ||
+          ollamaStatus.models[0];
+
+        return await explainIssueWithOllama(issue, {
+          model: modelToUse,
+          endpoint: options.ollamaEndpoint,
+        });
+      }
+    } catch (err) {
+      console.warn('Auto Ollama check failed, using heuristic engine:', err);
+    }
+  }
+
+  // 4. Intelligent Heuristic Fallback
   return generateHeuristicExplanation(issue);
 }
 
 export async function reviewPRWithGemini(
   req: PRReviewRequest,
-  customApiKey?: string
+  optionsOrKey?: AIOptions | string
 ): Promise<PRReviewResult> {
-  const client = getGeminiClient(customApiKey);
+  const options: AIOptions =
+    typeof optionsOrKey === 'string'
+      ? { customApiKey: optionsOrKey }
+      : optionsOrKey || {};
 
-  if (client) {
+  const provider = options.provider || 'auto';
+
+  // 1. Direct Ollama choice
+  if (provider === 'ollama') {
+    try {
+      return await reviewPRWithOllama(req, {
+        model: options.ollamaModel,
+        endpoint: options.ollamaEndpoint,
+      });
+    } catch (ollamaErr) {
+      console.warn('Ollama review failed, falling back to heuristic:', ollamaErr);
+      return generateHeuristicPRReview(req);
+    }
+  }
+
+  // 2. Direct Gemini or Auto (check Gemini key first)
+  const client = getGeminiClient(options.customApiKey);
+  if (client && (provider === 'gemini' || provider === 'auto')) {
     try {
       const prompt = `You are GitStart AI's "PR Doctor", a friendly senior maintainer reviewing a beginner's pull request before they submit it to an open-source project.
 Your goal is to prevent rejection, ensure high Hacktoberfest quality, check for conventional commits, linked issues, tests, and clean diffs.
@@ -124,7 +189,7 @@ ${req.diff}
 Analyze this PR thoroughly. Respond with ONLY valid JSON with this exact schema:
 {
   "score": 85,
-  "verdict": "Ready to Submit" | "Needs Improvements" | "Critical Issues Detected",
+  "verdict": "Ready to Submit",
   "summary": "2-3 sentences summarizing the PR state and key feedback.",
   "checklist": [
     {
@@ -172,7 +237,7 @@ Analyze this PR thoroughly. Respond with ONLY valid JSON with this exact schema:
       "suggestion": "Remove console.log before committing."
     }
   ],
-  "maintainerToneRating": "Friendly & Professional" | "Neutral" | "Vague / Demanding",
+  "maintainerToneRating": "Friendly & Professional",
   "polishedDescription": "A complete, beautifully formatted Markdown PR description ready for the user to copy-paste into GitHub.",
   "encouragement": "An uplifting, motivating closing statement for the beginner contributor."
 }`;
@@ -200,11 +265,31 @@ Analyze this PR thoroughly. Respond with ONLY valid JSON with this exact schema:
       const parsed: PRReviewResult = JSON.parse(cleaned);
       return parsed;
     } catch (apiErr) {
-      console.warn('Gemini API call failed for PR review, using intelligent heuristic fallback:', apiErr);
+      console.warn('Gemini API call failed for PR review, will try Ollama or fallback:', apiErr);
     }
   }
 
-  // Intelligent Heuristic Fallback
+  // 3. Auto fallback to local Ollama if running
+  if (provider === 'auto') {
+    try {
+      const ollamaStatus = await checkOllamaStatus(options.ollamaEndpoint);
+      if (ollamaStatus.running && ollamaStatus.models.length > 0) {
+        const modelToUse =
+          options.ollamaModel ||
+          ollamaStatus.models.find((m) => m.includes('qwen') || m.includes('gemma') || m.includes('llama')) ||
+          ollamaStatus.models[0];
+
+        return await reviewPRWithOllama(req, {
+          model: modelToUse,
+          endpoint: options.ollamaEndpoint,
+        });
+      }
+    } catch (err) {
+      console.warn('Auto Ollama PR review failed, using heuristic engine:', err);
+    }
+  }
+
+  // 4. Intelligent Heuristic Fallback
   return generateHeuristicPRReview(req);
 }
 
@@ -317,7 +402,6 @@ function generateHeuristicPRReview(req: PRReviewRequest): PRReviewResult {
   const checklist: PRReviewResult['checklist'] = [];
   const diffIssues: PRReviewResult['diffIssues'] = [];
 
-  // Check 1: Issue link
   const hasIssueLink =
     Boolean(req.issueNumber && req.issueNumber.trim()) ||
     /(?:fixes|closes|resolves|refs|#)\s*#?\d+/i.test(desc) ||
@@ -333,7 +417,6 @@ function generateHeuristicPRReview(req: PRReviewRequest): PRReviewResult {
       : 'Missing issue reference. Maintainers require PRs to link to an issue (e.g. "Fixes #123").',
   });
 
-  // Check 2: Conventional commit title
   const conventionalRegex = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9_-]+\))?:\s+.{3,}/i;
   const isConventional = conventionalRegex.test(title);
 
@@ -347,7 +430,6 @@ function generateHeuristicPRReview(req: PRReviewRequest): PRReviewResult {
       : 'Title is vague or missing prefix. Consider formatting like "fix(ui): description of change".',
   });
 
-  // Check 3: Description length & detail
   const isDescDetailed = desc.length > 50 && !/^(fixed|done|updated|works now)$/i.test(desc);
   checklist.push({
     id: 'description-quality',
@@ -359,7 +441,6 @@ function generateHeuristicPRReview(req: PRReviewRequest): PRReviewResult {
       : 'Description is very brief. Maintainers need to know WHY you made this change and HOW you tested it.',
   });
 
-  // Check 4: Unit tests present in diff
   const hasTests = /test|spec|\.test\.|\.spec\./i.test(diff);
   checklist.push({
     id: 'unit-tests',
@@ -371,13 +452,12 @@ function generateHeuristicPRReview(req: PRReviewRequest): PRReviewResult {
       : 'No test files detected in diff. Consider adding unit tests or documenting local manual testing.',
   });
 
-  // Check 5: Inspect diff for debug code & console.log
   const hasConsoleLog = /console\.log|print\(|debugger/i.test(diff);
   if (hasConsoleLog) {
     diffIssues.push({
       severity: 'warning',
       message: 'Detected debug statements (console.log / print / debugger) inside diff.',
-      suggestion: 'Remove debugging statements before opening your pull request.',
+      suggestion: 'Remove debugging statements before committing.',
     });
   }
 
@@ -390,7 +470,6 @@ function generateHeuristicPRReview(req: PRReviewRequest): PRReviewResult {
     });
   }
 
-  // Calculate score
   let score = 95;
   if (!hasIssueLink) score -= 25;
   if (!isConventional) score -= 15;
@@ -412,7 +491,6 @@ function generateHeuristicPRReview(req: PRReviewRequest): PRReviewResult {
     toneRating = 'Vague / Demanding';
   }
 
-  // Generate polished description
   const issueRef = req.issueNumber ? `Fixes #${req.issueNumber}` : 'Closes #[issue-number]';
   const polishedDescription = `## Description
 ${issueRef}

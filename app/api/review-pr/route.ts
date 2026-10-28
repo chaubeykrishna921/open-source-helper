@@ -4,7 +4,17 @@ import { reviewPRWithGemini } from '@/lib/gemini';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { title, description, diff, issueNumber, targetBranch, customApiKey } = body;
+    const {
+      title,
+      description,
+      diff,
+      issueNumber,
+      targetBranch,
+      customApiKey,
+      provider,
+      ollamaModel,
+      ollamaEndpoint,
+    } = body;
 
     if (!title && !diff && !description) {
       return NextResponse.json(
@@ -21,7 +31,12 @@ export async function POST(req: NextRequest) {
         issueNumber: issueNumber || '',
         targetBranch: targetBranch || 'main',
       },
-      customApiKey
+      {
+        customApiKey,
+        provider,
+        ollamaModel,
+        ollamaEndpoint,
+      }
     );
 
     return NextResponse.json(review);
