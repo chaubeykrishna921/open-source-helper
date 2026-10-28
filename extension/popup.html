@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitStart AI</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 16px;
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #020617;
+      color: #f8fafc;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-badge {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: #10b981;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #020617;
+      font-size: 14px;
+    }
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .badge {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      background: rgba(249, 115, 22, 0.15);
+      color: #fb923c;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+    .page-status {
+      padding: 10px;
+      border-radius: 8px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      margin-bottom: 12px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .page-status strong {
+      color: #f8fafc;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: background 0.15s ease;
+    }
+    .btn-primary {
+      background: #10b981;
+      color: #020617;
+    }
+    .btn-primary:hover {
+      background: #34d399;
+    }
+    .btn-secondary {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+    }
+    .btn-secondary:hover {
+      background: #334155;
+    }
+    .tips {
+      font-size: 10px;
+      color: #64748b;
+      line-height: 1.4;
+      text-align: center;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      <div class="logo-badge">✦</div>
+      <div class="title">GitStart AI</div>
+    </div>
+    <span class="badge">Hacktoberfest</span>
+  </div>
+
+  <div id="pageStatus" class="page-status">
+    <strong>Detecting GitHub Page...</strong>
+    Checking if you are viewing an issue or pull request.
+  </div>
+
+  <button id="btnAction" class="action-btn btn-primary">
+    ✨ Explain This Issue
+  </button>
+
+  <button id="btnOpenWeb" class="action-btn btn-secondary">
+    🌐 Open GitStart Dashboard
+  </button>
+
+  <div class="tips">
+    GitStart AI automatically injects helpful assistant buttons on GitHub issues and PR drafts.
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
